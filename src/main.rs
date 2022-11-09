@@ -148,7 +148,7 @@ impl Minutes {
             return Ok(Minutes { minutes });
         }
 
-        if let Some(range) = param.range {
+        if let Some(range) = param.range.as_ref() {
             let mut minutes = Vec::new();
             for i in range.start..=range.end {
                 minutes.push(i);
@@ -156,7 +156,8 @@ impl Minutes {
             return Ok(Minutes { minutes });
         }
 
-        if let Some(minutes) = param.numbers {
+        if let Some(mut minutes) = param.numbers {
+            minutes.sort();
             return Ok(Minutes { minutes });
         }
 
@@ -186,13 +187,14 @@ impl Hours {
             });
         }
 
-        if let Some(range) = param.range {
+        if let Some(range) = param.range.as_ref() {
             return Ok(Hours {
                 hours: (range.start..=range.end).collect(),
             });
         }
 
-        if let Some(hours) = param.numbers {
+        if let Some(mut hours) = param.numbers {
+            hours.sort();
             return Ok(Hours { hours });
         }
 
@@ -220,13 +222,14 @@ impl DaysOfMonth {
             });
         }
 
-        if let Some(range) = param.range {
+        if let Some(range) = param.range.as_ref() {
             return Ok(DaysOfMonth {
                 days: (range.start..=range.end).collect(),
             });
         }
 
-        if let Some(days) = param.numbers {
+        if let Some(mut days) = param.numbers {
+            days.sort();
             return Ok(DaysOfMonth { days });
         }
 
@@ -259,7 +262,8 @@ impl DaysOfWeek {
             });
         }
 
-        if let Some(days) = param.numbers {
+        if let Some(mut days) = param.numbers {
+            days.sort();
             return Ok(Self { days });
         }
 
@@ -283,17 +287,18 @@ impl Months {
         param.validate(1, 12)?;
         if param.wildcard {
             return Ok(Self {
-                months: (0..=12).collect(),
+                months: (1..=12).collect(),
             });
         }
 
         if let Some(range) = param.range {
             return Ok(Self {
-                months: (range.start..range.end).collect(),
+                months: (range.start..=range.end).collect(),
             });
         }
 
-        if let Some(months) = param.numbers {
+        if let Some(mut months) = param.numbers {
+            months.sort();
             return Ok(Self { months });
         }
 
@@ -401,4 +406,123 @@ fn main() {
     let example = "*/15 0 1,15 * 1-5 /usr/bin/find";
     let result = parse(example.to_string());
     println!("{}", result.unwrap());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_from_task() -> Result<(), Box<dyn std::error::Error>> {
+        let example = "*/15 0 1,15 * 1-5 /usr/bin/find";
+        let result = parse(example.to_string())?;
+
+        assert_eq!(result.minute.minutes, vec![0, 15, 30, 45]);
+        assert_eq!(result.hour.hours, vec![0]);
+        assert_eq!(result.day_of_month.days, vec![1, 15]);
+        assert_eq!(
+            result.month.months,
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        );
+        assert_eq!(result.day_of_week.days, vec![1, 2, 3, 4, 5]);
+        assert_eq!(result.command.command, "/usr/bin/find");
+        Ok(())
+    }
+    #[test]
+    fn test_all_stars() -> Result<(), Box<dyn std::error::Error>> {
+        let example = "* * * * * /usr/bin/find";
+        let result = parse(example.to_string())?;
+
+        assert_eq!(result.minute.minutes, (0..=59).collect::<Vec<i64>>());
+        assert_eq!(result.hour.hours, (0..=23).collect::<Vec<i64>>());
+        assert_eq!(result.day_of_month.days, (1..=31).collect::<Vec<i64>>());
+        assert_eq!(result.month.months, (1..=12).collect::<Vec<i64>>());
+        assert_eq!(result.day_of_week.days, (1..=7).collect::<Vec<i64>>());
+        assert_eq!(result.command.command, "/usr/bin/find");
+        Ok(())
+    }
+
+    #[test]
+    fn test_concrete_values() -> Result<(), Box<dyn std::error::Error>> {
+        let example = "1,2 1,2 1,2 1,2 1,2 /usr/bin/find";
+        let result = parse(example.to_string())?;
+        let right = vec![1, 2];
+        assert_eq!(result.minute.minutes, right);
+        assert_eq!(result.hour.hours, right);
+        assert_eq!(result.day_of_month.days, right);
+        assert_eq!(result.month.months, right);
+        assert_eq!(result.day_of_week.days, right);
+        assert_eq!(result.command.command, "/usr/bin/find");
+        Ok(())
+    }
+    #[test]
+    fn test_concrete_values_order() -> Result<(), Box<dyn std::error::Error>> {
+        let example = "2,1 2,1 2,1 2,1 2,1 /usr/bin/find";
+        let result = parse(example.to_string())?;
+        let right = vec![1, 2];
+        assert_eq!(result.minute.minutes, right);
+        assert_eq!(result.hour.hours, right);
+        assert_eq!(result.day_of_month.days, right);
+        assert_eq!(result.month.months, right);
+        assert_eq!(result.day_of_week.days, right);
+        assert_eq!(result.command.command, "/usr/bin/find");
+        Ok(())
+    }
+    #[test]
+    fn test_ranges() -> Result<(), Box<dyn std::error::Error>> {
+        let example = "1-2 1-2 1-2 1-2 1-2 /usr/bin/find";
+        let result = parse(example.to_string())?;
+        let right = vec![1, 2];
+        assert_eq!(result.minute.minutes, right);
+        assert_eq!(result.hour.hours, right);
+        assert_eq!(result.day_of_month.days, right);
+        assert_eq!(result.month.months, right);
+        assert_eq!(result.day_of_week.days, right);
+        assert_eq!(result.command.command, "/usr/bin/find");
+        Ok(())
+    }
+
+    #[test]
+    fn test_period_values() -> Result<(), Box<dyn std::error::Error>> {
+        let example = "*/15 */2 */2 */2 */2 /usr/bin/find";
+        let result = parse(example.to_string())?;
+        assert_eq!(result.minute.minutes, vec![0, 15, 30, 45]);
+        assert_eq!(
+            result.hour.hours,
+            vec![0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+        );
+        assert_eq!(
+            result.day_of_month.days,
+            vec![1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31]
+        );
+        assert_eq!(result.month.months, vec![1, 3, 5, 7, 9, 11]);
+        assert_eq!(result.day_of_week.days, vec![1, 3, 5, 7]);
+        assert_eq!(result.command.command, "/usr/bin/find");
+        Ok(())
+    }
+    #[test]
+    fn test_bad_expressions() {
+        let examples = vec![
+            "*/15 */2 */2 */2 */2",
+            "*/15 */2 */2 */2 */2 hello world",
+            "*/0 */2 */2 */2 */2 /usr/bin/find",
+            "*/15 */0 */2 */2 */2 /usr/bin/find",
+            "*/15 */2 */0 */2 */2 /usr/bin/find",
+            "*/15 */2 */2 */0 */2 /usr/bin/find",
+            "*/15 */2 */2 */2 */0 /usr/bin/find",
+            "*/-1 */2 */2 */2 */2 /usr/bin/find",
+            "*/15 */-2 */2 */2 */2 /usr/bin/find",
+            "*/15 */2 */-2 */2 */2 /usr/bin/find",
+            "*/15 */2 */2 */-2 */2 /usr/bin/find",
+            "*/15 */2 */2 */2 */-2 /usr/bin/find",
+            "0,98 */2 */2 */2 */2 /usr/bin/find",
+            "0-98 */2 */2 */2 */2 /usr/bin/find",
+            "*/2 0-98 */2 */2 */2 /usr/bin/find",
+            "*/2 0,98 */2 */2 */2 /usr/bin/find",
+            "*/2 0,1 982,1 */2 */2 /usr/bin/find",
+        ];
+        for example in examples {
+            let result = parse(example.to_string());
+            assert!(result.is_err(), "{}", example.to_string());
+        }
+    }
 }
