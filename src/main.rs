@@ -1,3 +1,4 @@
+use std::env;
 use anyhow::Result;
 use std::fmt;
 use thiserror::Error;
@@ -403,9 +404,11 @@ fn parse(str: String) -> Result<Cron, anyhow::Error> {
     })
 }
 fn main() {
-    let example = "*/15 0 1,15 * 1-5 /usr/bin/find";
-    let result = parse(example.to_string());
-    println!("{}", result.unwrap());
+    let arg = std::env::args().nth(1).unwrap();
+    match parse(arg){
+        Ok(cron) => println!("{}", cron),
+        Err(e) => println!("{}", e),
+    }
 }
 
 #[cfg(test)]
