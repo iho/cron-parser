@@ -337,7 +337,7 @@ struct Cron {
 impl fmt::Display for Cron {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:14} {}", "minutes", to_string(&self.minute.minutes))?;
-        writeln!(f, "{:14} {}\n", "hour", to_string(&self.hour.hours))?;
+        writeln!(f, "{:14} {}", "hour", to_string(&self.hour.hours))?;
         writeln!(
             f,
             "{:14} {}",
@@ -347,7 +347,7 @@ impl fmt::Display for Cron {
         writeln!(f, "{:14} {}", "month", to_string(&self.month.months))?;
         writeln!(
             f,
-            "{:14} {}\n",
+            "{:14} {}",
             "day of week",
             to_string(&self.day_of_week.days)
         )?;
