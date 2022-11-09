@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -40,7 +41,7 @@ impl ParsingResults {
         }
 
         if let Some(periodic_range) = self.periodic_range {
-            if periodic_range < range_begin || periodic_range > range_end || periodic_range <=0 {
+            if periodic_range < range_begin || periodic_range > range_end || periodic_range <= 0 {
                 return Err(anyhow::anyhow!("Invalid periodic range"));
             }
         }
@@ -52,7 +53,7 @@ impl ParsingResults {
 fn parse_param(str: String) -> Result<ParsingResults, ParserError> {
     let str = str.trim().to_string();
     dbg!(str.clone());
-    if str.len() == 0 {
+    if str.is_empty() {
         return Err(ParserError::InvalidCharacter(str, 0));
     }
     if str == "*" {
@@ -64,8 +65,8 @@ fn parse_param(str: String) -> Result<ParsingResults, ParserError> {
         });
     }
 
-    if str.contains("-") {
-        let parts: Vec<&str> = str.split("-").collect();
+    if str.contains('-') {
+        let parts: Vec<&str> = str.split('-').collect();
         if parts.len() != 2 {
             return Err(ParserError::InvalidRange(anyhow::anyhow!("Invalid range")));
         }
@@ -83,8 +84,8 @@ fn parse_param(str: String) -> Result<ParsingResults, ParserError> {
             periodic_range: None,
         });
     }
-    if str.contains(",") {
-        let parts: Vec<&str> = str.split(",").collect();
+    if str.contains(',') {
+        let parts: Vec<&str> = str.split(',').collect();
         let mut numbers = Vec::new();
         for (index, part) in parts.iter().enumerate() {
             let number = part
@@ -102,7 +103,7 @@ fn parse_param(str: String) -> Result<ParsingResults, ParserError> {
     if str.starts_with("*/") {
         let mut number: i64 = 0;
         for (index, char) in str.chars().skip(2).enumerate() {
-            if !char.is_digit(10) {
+            if !char.is_ascii_digit() {
                 return Err(ParserError::InvalidCharacter(char.to_string(), index));
             }
             number = number * 10 + char.to_digit(10).unwrap() as i64;
@@ -117,23 +118,21 @@ fn parse_param(str: String) -> Result<ParsingResults, ParserError> {
 
     let mut number: i64 = 0;
     for (index, char) in str.chars().enumerate() {
-        if !char.is_digit(10) {
+        if !char.is_ascii_digit() {
             return Err(ParserError::InvalidCharacter(char.to_string(), index));
         }
         number = number * 10 + char.to_digit(10).unwrap() as i64;
     }
-    let mut numbers = Vec::new();
-    numbers.push(number);
 
     Ok(ParsingResults {
-        numbers: Some(numbers),
+        numbers: Some(vec![number]),
         range: None,
         wildcard: false,
         periodic_range: None,
     })
 }
 
-#[derive( Debug)]
+#[derive(Debug)]
 struct Minutes {
     minutes: Vec<i64>,
 }
@@ -173,7 +172,7 @@ impl Minutes {
     }
 }
 
-#[derive( Debug)]
+#[derive(Debug)]
 struct Hours {
     hours: Vec<i64>,
 }
@@ -207,7 +206,7 @@ impl Hours {
     }
 }
 
-#[derive( Debug)]
+#[derive(Debug)]
 struct DaysOfMonth {
     days: Vec<i64>,
 }
@@ -241,7 +240,7 @@ impl DaysOfMonth {
     }
 }
 
-#[derive( Debug)]
+#[derive(Debug)]
 struct DaysOfWeek {
     days: Vec<i64>,
 }
@@ -274,7 +273,7 @@ impl DaysOfWeek {
     }
 }
 
-#[derive( Debug)]
+#[derive(Debug)]
 struct Months {
     months: Vec<i64>,
 }
@@ -308,7 +307,7 @@ impl Months {
     }
 }
 
-#[derive( Debug)]
+#[derive(Debug)]
 struct Command {
     command: String,
 }
@@ -320,8 +319,7 @@ impl Command {
     }
 }
 
-
-#[derive( Debug)]
+#[derive(Debug)]
 struct Cron {
     minute: Minutes,
     hour: Hours,
@@ -329,6 +327,41 @@ struct Cron {
     day_of_week: DaysOfWeek,
     month: Months,
     command: Command,
+}
+
+impl fmt::Display for Cron {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:14} {}\n", "minutes", to_string(&self.minute.minutes))?;
+        write!(f, "{:14} {}\n", "hour", to_string(&self.hour.hours))?;
+        write!(
+            f,
+            "{:14} {}\n",
+            "day of month",
+            to_string(&self.day_of_month.days)
+        )?;
+        write!(f, "{:14} {}\n", "month", to_string(&self.month.months))?;
+        write!(
+            f,
+            "{:14} {}\n",
+            "day of week",
+            to_string(&self.day_of_week.days)
+        )?;
+        write!(f, "{:14} {}\n", "command", self.command.command)?;
+
+        Ok(())
+    }
+}
+
+fn to_string(v: &Vec<i64>) -> String {
+    let mut comma_separated = String::new();
+
+    for num in &v[0..v.len() - 1] {
+        comma_separated.push_str(&num.to_string());
+        comma_separated.push_str(", ");
+    }
+
+    comma_separated.push_str(&v[v.len() - 1].to_string());
+    format!("{}", comma_separated)
 }
 
 fn parse(str: String) -> Result<Cron, anyhow::Error> {
@@ -367,5 +400,5 @@ fn parse(str: String) -> Result<Cron, anyhow::Error> {
 fn main() {
     let example = "*/15 0 1,15 * 1-5 /usr/bin/find";
     let result = parse(example.to_string());
-    dbg!(result);
+    println!("{}", result.unwrap());
 }
