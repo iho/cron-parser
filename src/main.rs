@@ -336,22 +336,22 @@ struct Cron {
 
 impl fmt::Display for Cron {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:14} {}\n", "minutes", to_string(&self.minute.minutes))?;
-        write!(f, "{:14} {}\n", "hour", to_string(&self.hour.hours))?;
-        write!(
+        writeln!(f, "{:14} {}", "minutes", to_string(&self.minute.minutes))?;
+        writeln!(f, "{:14} {}\n", "hour", to_string(&self.hour.hours))?;
+        writeln!(
             f,
-            "{:14} {}\n",
+            "{:14} {}",
             "day of month",
             to_string(&self.day_of_month.days)
         )?;
-        write!(f, "{:14} {}\n", "month", to_string(&self.month.months))?;
-        write!(
+        writeln!(f, "{:14} {}", "month", to_string(&self.month.months))?;
+        writeln!(
             f,
             "{:14} {}\n",
             "day of week",
             to_string(&self.day_of_week.days)
         )?;
-        write!(f, "{:14} {}\n", "command", self.command.command)?;
+        writeln!(f, "{:14} {}", "command", self.command.command)?;
 
         Ok(())
     }
@@ -366,7 +366,7 @@ fn to_string(v: &Vec<i64>) -> String {
     }
 
     comma_separated.push_str(&v[v.len() - 1].to_string());
-    format!("{}", comma_separated)
+    comma_separated.to_string()
 }
 
 fn parse(str: String) -> Result<Cron, anyhow::Error> {
