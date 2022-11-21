@@ -1,5 +1,5 @@
-use std::env;
 use anyhow::Result;
+use std::collections::HashMap;
 use std::fmt;
 use thiserror::Error;
 
@@ -51,12 +51,91 @@ impl ParsingResults {
     }
 }
 
+fn is_day_of_week(str: &String) -> Option<i64> {
+    let days_of_week = HashMap::from([
+        ("Mon", 1),
+        ("Tue", 2),
+        ("Wed", 3),
+        ("Thu", 4),
+        ("Fri", 5),
+        ("Sat", 6),
+        ("San", 7),
+    ]);
+
+    for (day, number) in days_of_week {
+        if str == day {
+            return Some(number);
+        }
+    }
+
+    None
+}
+
 fn parse_param(str: String) -> Result<ParsingResults, ParserError> {
     let str = str.trim().to_string();
     dbg!(str.clone());
     if str.is_empty() {
         return Err(ParserError::InvalidCharacter(str, 0));
     }
+
+    if let Some(day) = is_day_of_week(&str) {
+        return Ok(ParsingResults {
+            numbers: Some(vec![day]),
+            range: None,
+            wildcard: false,
+            periodic_range: None,
+        });
+    }
+
+    let mut has_number = false;
+    for chat in str.chars() {
+        if chat.is_numeric() {
+            has_number = true;
+            break;
+        }
+    }
+
+    if !has_number {
+        if str.contains('-') {
+            let parts: Vec<&str> = str.split('-').collect();
+            if parts.len() != 2 {
+                return Err(ParserError::InvalidRange(anyhow::anyhow!("Invalid range")));
+            }
+
+            if let Some(range_start) = is_day_of_week(&parts[0].to_string()) {
+                if let Some(range_end) = is_day_of_week(&parts[1].to_string()) {
+                    return Ok(ParsingResults {
+                        range: Some(Range {
+                            start: range_start,
+                            end: range_end,
+                        }),
+                        numbers: None,
+                        wildcard: false,
+                        periodic_range: None,
+                    });
+                }
+            }
+        }
+
+        if str.contains(',') {
+            let parts: Vec<&str> = str.split(',').collect();
+            let mut numbers = Vec::new();
+            for part in parts {
+                if let Some(number) = is_day_of_week(&part.to_string()) {
+                    numbers.push(number);
+                } else {
+                    return Err(ParserError::InvalidCharacter(part.to_string(), 0));
+                }
+            }
+            return Ok(ParsingResults {
+                numbers: Some(numbers),
+                range: None,
+                wildcard: false,
+                periodic_range: None,
+            });
+        }
+    }
+
     if str == "*" {
         return Ok(ParsingResults {
             wildcard: true,
@@ -258,6 +337,12 @@ impl DaysOfWeek {
         }
 
         if let Some(range) = param.range {
+            if range.start > range.end {
+                let start: Vec<i64> = (1..=range.end).collect();
+                let mut end: Vec<i64> = (range.start..=7).collect();
+                end.extend(start);
+                return Ok(Self { days: end });
+            }
             return Ok(Self {
                 days: (range.start..=range.end).collect(),
             });
@@ -405,7 +490,7 @@ fn parse(str: String) -> Result<Cron, anyhow::Error> {
 }
 fn main() {
     let arg = std::env::args().nth(1).unwrap();
-    match parse(arg){
+    match parse(arg) {
         Ok(cron) => println!("{}", cron),
         Err(e) => println!("{}", e),
     }
