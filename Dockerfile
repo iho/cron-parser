@@ -5,4 +5,4 @@ COPY . .
 
 RUN cargo install --path .
 
-CMD ["myapp"]
+CMD ["cron-parser"]
